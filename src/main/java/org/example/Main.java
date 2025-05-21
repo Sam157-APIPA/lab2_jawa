@@ -1,13 +1,27 @@
 package org.example;
 import java.util.*;
 
+/**
+ * Main class for parsing and evaluating mathematical expressions.
+ *
+ * This class supports numbers, variables, arithmetic operators, parentheses,
+ * and a set of built-in functions (unary and binary)
+ *
+ */
 public class Main {
+
+    /**
+     * Entry point. Reads an expression from standard input, prompts for variable values,
+     * evaluates the expression, and prints the result. Prints an error message if
+     * the expression is invalid.
+     *
+     * @param args command-line arguments (unused)
+     */
     public static void main(String[] args) {
         Scanner scanner = new Scanner(System.in);
         System.out.print("Enter expression: ");
         String expression = scanner.nextLine();
         try {
-            // Collect variable names
             Set<String> variables = getVariables(expression);
             Map<String, Double> varValues = new HashMap<>();
             for (String var : variables) {
@@ -17,7 +31,6 @@ public class Main {
                 varValues.put(var, val);
             }
 
-            // Tokenize, convert to RPN, and evaluate
             List<String> tokens = tokenize(expression);
             List<String> rpn = toRPN(tokens);
             double result = evaluateRPN(rpn, varValues);
@@ -28,22 +41,33 @@ public class Main {
         }
     }
 
-    // Extract variable names (identifiers not recognized as functions)
+    /**
+     * Extracts variable names from the expression tokens. Identifiers
+     * that are not recognized as functions are considered variables.
+     *
+     * @param expr the input expression string
+     * @return a set of variable names
+     * @throws RuntimeException if tokenization fails
+     */
     private static Set<String> getVariables(String expr) {
         List<String> tokens = tokenize(expr);
         Set<String> vars = new HashSet<>();
         for (String tok : tokens) {
-            if (tok.matches("[a-zA-Z_]\\w*")) {
-                // if not a known function name
-                if (!isFunction(tok)) {
-                    vars.add(tok);
-                }
+            if (tok.matches("[a-zA-Z_]\\w*") && !isFunction(tok)) {
+                vars.add(tok);
             }
         }
         return vars;
     }
 
-    // Tokenize the input string
+    /**
+     * Splits the expression string into a list of tokens: numbers, identifiers,
+     * operators, parentheses, and commas.
+     *
+     * @param expr the input expression string
+     * @return list of tokens
+     * @throws RuntimeException if an unknown character is encountered
+     */
     private static List<String> tokenize(String expr) {
         List<String> tokens = new ArrayList<>();
         int i = 0;
@@ -73,10 +97,17 @@ public class Main {
         return tokens;
     }
 
-    // Convert infix tokens to Reverse Polish Notation using shunting-yard
+    /**
+     * Converts a list of infix tokens to Reverse Polish Notation (RPN)
+     * using the Shunting-Yard algorithm.
+     *
+     * @param tokens list of infix tokens
+     * @return list of tokens in RPN order
+     * @throws RuntimeException on mismatched parentheses or misplaced commas
+     */
     private static List<String> toRPN(List<String> tokens) {
         List<String> output = new ArrayList<>();
-        Stack<String> ops = new Stack<>();
+        Deque<String> ops = new ArrayDeque<>();
         for (String tok : tokens) {
             if (tok.matches("\\d+(\\.\\d+)?")) {
                 output.add(tok);
@@ -84,7 +115,6 @@ public class Main {
                 if (isFunction(tok)) {
                     ops.push(tok);
                 } else {
-                    // variable
                     output.add(tok);
                 }
             } else if (tok.equals(",")) {
@@ -93,8 +123,8 @@ public class Main {
                 }
                 if (ops.isEmpty()) throw new RuntimeException("Misplaced comma");
             } else if (isOperator(tok)) {
-                while (!ops.isEmpty() && isOperator(ops.peek()) &&(
-                        (isLeftAssoc(tok) && precedence(tok) <= precedence(ops.peek())) ||
+                while (!ops.isEmpty() && isOperator(ops.peek()) &&
+                        ((isLeftAssoc(tok) && precedence(tok) <= precedence(ops.peek())) ||
                                 (!isLeftAssoc(tok) && precedence(tok) < precedence(ops.peek())))) {
                     output.add(ops.pop());
                 }
@@ -114,15 +144,22 @@ public class Main {
         }
         while (!ops.isEmpty()) {
             String op = ops.pop();
-            if (op.equals("(") || op.equals(")")) throw new RuntimeException("Mismatched parentheses");
+            if ("()".contains(op)) throw new RuntimeException("Mismatched parentheses");
             output.add(op);
         }
         return output;
     }
 
-    // Evaluate RPN expression
+    /**
+     * Evaluates an expression in RPN form.
+     *
+     * @param rpn list of tokens in RPN order
+     * @param vars map of variable names to their values
+     * @return the computed result
+     * @throws RuntimeException on invalid expression or unknown token
+     */
     private static double evaluateRPN(List<String> rpn, Map<String, Double> vars) {
-        Stack<Double> stack = new Stack<>();
+        Deque<Double> stack = new ArrayDeque<>();
         for (String tok : rpn) {
             if (tok.matches("\\d+(\\.\\d+)?")) {
                 stack.push(Double.parseDouble(tok));
@@ -149,23 +186,49 @@ public class Main {
         return stack.pop();
     }
 
+    /**
+     * Checks if a token is an operator.
+     *
+     * @param tok operator token
+     * @return true if tok is one of +, -, *, /, ^
+     */
     private static boolean isOperator(String tok) {
         return "+-*/^".contains(tok);
     }
 
+    /**
+     * Returns operator precedence.
+     *
+     * @param op operator token
+     * @return precedence level (higher means evaluated first)
+     */
     private static int precedence(String op) {
         switch (op) {
             case "+": case "-": return 2;
             case "*": case "/": return 3;
             case "^": return 4;
+            default: return 0;
         }
-        return 0;
     }
 
+    /**
+     * Determines if an operator is left-associative.
+     *
+     * @param op operator token
+     * @return true for +, -, *, /; false for ^
+     */
     private static boolean isLeftAssoc(String op) {
-        return !op.equals("^");
+        return !"^".equals(op);
     }
 
+    /**
+     * Applies a binary operator to two operands.
+     *
+     * @param op operator token
+     * @param a left operand
+     * @param b right operand
+     * @return result of operation
+     */
     private static double applyOp(String op, double a, double b) {
         switch (op) {
             case "+": return a + b;
@@ -177,7 +240,7 @@ public class Main {
         }
     }
 
-    // Functions support
+    // Supported functions
     private static final Set<String> UNARY_FUNCS = new HashSet<>(Arrays.asList(
             "sin","cos","tan","asin","acos","atan","sqrt","abs","log","exp"
     ));
@@ -185,14 +248,33 @@ public class Main {
             "pow","max","min"
     ));
 
+    /**
+     * Checks if a token is a recognized function name.
+     *
+     * @param name function name token
+     * @return true if name is in the set of supported functions
+     */
     private static boolean isFunction(String name) {
         return UNARY_FUNCS.contains(name) || BINARY_FUNCS.contains(name);
     }
 
+    /**
+     * Determines if a function is unary (takes one argument).
+     *
+     * @param name function name token
+     * @return true if name is in the set of unary functions
+     */
     private static boolean isUnaryFunction(String name) {
         return UNARY_FUNCS.contains(name);
     }
 
+    /**
+     * Applies a unary function to an operand.
+     *
+     * @param name function name
+     * @param a argument value
+     * @return result of function
+     */
     private static double applyFunc(String name, double a) {
         switch (name) {
             case "sin": return Math.sin(a);
@@ -209,6 +291,14 @@ public class Main {
         }
     }
 
+    /**
+     * Applies a binary function to two operands.
+     *
+     * @param name function name
+     * @param a first argument
+     * @param b second argument
+     * @return result of function
+     */
     private static double applyFunc(String name, double a, double b) {
         switch (name) {
             case "pow": return Math.pow(a, b);
@@ -218,3 +308,4 @@ public class Main {
         }
     }
 }
+
